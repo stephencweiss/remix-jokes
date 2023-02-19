@@ -51,3 +51,8 @@ rm -rf app
 # copy your app over
 cp -R ../my-old-remix-app/app app
 ```
+
+## Useful Docs
+
+1. [Tutorial](https://remix.run/docs/en/v1/tutorials/jokes)
+1. [Route Naming Conventions](https://remix.run/docs/en/v1/file-conventions/routes-files)

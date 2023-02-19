@@ -7,7 +7,11 @@
     "start": "remix-serve build",
     "typecheck": "tsc"
   },
+  "prisma": {
+    "seed": "node --require esbuild-register prisma/seed.ts"
+  },
   "dependencies": {
+    "@prisma/client": "^4.10.1",
     "@remix-run/node": "^1.13.0",
     "@remix-run/react": "^1.13.0",
     "@remix-run/serve": "^1.13.0",
@@ -20,7 +24,9 @@
     "@remix-run/eslint-config": "^1.13.0",
     "@types/react": "^18.0.25",
     "@types/react-dom": "^18.0.8",
+    "esbuild-register": "^3.4.2",
     "eslint": "^8.27.0",
+    "prisma": "^4.10.1",
     "typescript": "^4.8.4"
   },
   "engines": {
