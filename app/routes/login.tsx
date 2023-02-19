@@ -26,9 +26,10 @@ const validateUsername = (username: string) => {
   // TODO: add Zod or something to validate that this is an email?
 };
 
-const validateUrl = (url: string) => {
-  let urls = ['/jokes', '/', 'https://remix.run'];
-  if (urls.includes(url)) {
+const validateUrl = (url: FormDataEntryValue | null) => {
+  const strUrl = String(url)
+  let urls = ['/jokes', '/jokes/new', '/', 'https://remix.run'];
+  if (urls.includes(strUrl)) {
     return url;
   }
   return '/jokes';
@@ -39,7 +40,7 @@ export async function action({ request }: ActionArgs) {
   const loginType = body.get('loginType');
   const username = body.get('username');
   const password = body.get('password');
-  const redirectTo = validateUrl(String(body.get('redirectTo')));
+  const redirectTo = validateUrl(body.get('redirectTo'));
   if (
     typeof loginType !== 'string' ||
     typeof username !== 'string' ||
@@ -74,6 +75,7 @@ export async function action({ request }: ActionArgs) {
           formError: 'Username/Password combination is incorrect',
         });
       }
+      console.log({redirectTo})
       return await createUserSession(user.id, redirectTo)
     }
     case 'register': {
@@ -107,6 +109,8 @@ export async function action({ request }: ActionArgs) {
 export default function Login() {
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
+  const redir = searchParams.get("redirectTo");
+  console.log({searchParams, redir})
   return (
     <div className="container">
       <div className="content" data-light="">

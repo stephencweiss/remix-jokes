@@ -1,6 +1,6 @@
-import type { ActionArgs } from '@remix-run/node';
+import { ActionArgs, LoaderArgs } from '@remix-run/node';
 import { redirect } from '@remix-run/node';
-import { useActionData } from '@remix-run/react';
+import { useActionData, useLoaderData } from '@remix-run/react';
 
 import { db } from '~/utils/db.server';
 import { badRequest } from '~/utils/request.server';
@@ -52,9 +52,13 @@ export async function action({ request }: ActionArgs) {
   return redirect(`/jokes/${joke.id}`);
 }
 
+export const loader = async ({request}: LoaderArgs) => {
+  return await requireUserId(request, new URL(request.url).pathname)
+}
+
 export default function NewJokeRoute() {
   const actionData = useActionData<typeof action>();
-
+  useLoaderData<typeof loader>();
   return (
     <body>
       <div>
