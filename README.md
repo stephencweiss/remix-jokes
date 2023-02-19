@@ -56,3 +56,4 @@ cp -R ../my-old-remix-app/app app
 
 1. [Tutorial](https://remix.run/docs/en/v1/tutorials/jokes)
 1. [Route Naming Conventions](https://remix.run/docs/en/v1/file-conventions/routes-files)
+1. [Session](https://remix.run/docs/en/v1/utils/sessions)
