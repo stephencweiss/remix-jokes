@@ -45,7 +45,7 @@ function createDatabaseSessionStorage({
   return createSessionStorage({
     cookie,
     async createData(data: SessionData, expires?: Date) {
-      console.log({data})
+      console.log({ data })
       const session = await db.session.create({ data: { userId: data.userId, expiresAt: expires } });
       return session.id;
     },
@@ -92,6 +92,26 @@ export async function getUserId(request: Request) {
   const userId = session.get('userId')
   if (!userId || typeof userId !== 'string') return null;
   return userId
+}
+
+export async function getUser(request: Request) {
+  const userId = await getUserId(request);
+  if (userId === null) return null;
+  try {
+    const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, username: true } })
+    return user
+  } catch {
+    throw logout(request)
+  }
+}
+
+export async function logout(request: Request) {
+  const session = await getUserSession(request);
+  return redirect('/login', {
+    headers: {
+      "Set-Cookie": await storage.destroySession(session),
+    }
+  })
 }
 
 export async function requireUserId(
