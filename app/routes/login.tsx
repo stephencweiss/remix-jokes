@@ -5,7 +5,7 @@ import { db } from '~/utils/db.server';
 
 import stylesUrl from '~/styles/login.css';
 import { badRequest } from '~/utils/request.server';
-import { createUserSession, login } from '~/utils/session.server';
+import { createUserSession, login, register } from '~/utils/session.server';
 
 export const links: LinksFunction = () => [
   { rel: 'stylesheet', href: stylesUrl },
@@ -26,11 +26,11 @@ const validateUsername = (username: string) => {
   // TODO: add Zod or something to validate that this is an email?
 };
 
-const validateUrl = (url: FormDataEntryValue | null) => {
-  const strUrl = String(url)
+const validateUrl = (url: FormDataEntryValue | null): string => {
+  const strUrl = String(url);
   let urls = ['/jokes', '/jokes/new', '/', 'https://remix.run'];
   if (urls.includes(strUrl)) {
-    return url;
+    return strUrl;
   }
   return '/jokes';
 };
@@ -67,7 +67,6 @@ export async function action({ request }: ActionArgs) {
   switch (loginType) {
     case 'login': {
       const user = await login(fields);
-      console.log({user})
       if (!user) {
         return badRequest({
           fieldErrors: null,
@@ -75,8 +74,7 @@ export async function action({ request }: ActionArgs) {
           formError: 'Username/Password combination is incorrect',
         });
       }
-      console.log({redirectTo})
-      return await createUserSession(user.id, redirectTo)
+      return await createUserSession(user.id, redirectTo);
     }
     case 'register': {
       const userExists = await db.user.findUnique({
@@ -89,13 +87,16 @@ export async function action({ request }: ActionArgs) {
           formError: `Username is already taken; please choose a different one`,
         });
       }
-      // create the user
-      // create their session and redirect
-      return badRequest({
-        fields,
-        fieldErrors: null,
-        formError: `Not implemented`,
-      });
+      const {id} = await register({ username, password });
+      if (id == null) {
+        return badRequest({
+          fieldErrors: null,
+          fields,
+          formError: `Something went wrong while creating a new user; please try again`,
+        });
+      }
+
+      return await createUserSession(id, redirectTo);
     }
     default:
       return badRequest({
@@ -109,8 +110,8 @@ export async function action({ request }: ActionArgs) {
 export default function Login() {
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
-  const redir = searchParams.get("redirectTo");
-  console.log({searchParams, redir})
+  const redir = searchParams.get('redirectTo');
+  console.log({ searchParams, redir });
   return (
     <div className="container">
       <div className="content" data-light="">
