@@ -31,7 +31,6 @@ const validateJokeName = (name: string) => {
 export async function action({ request }: ActionArgs) {
   const body = await request.formData();
   const userId = String(body.get('userId'));
-  console.log({userId})
   const name = String(body.get('name'));
   const content = String(body.get('content'));
   if (!name || !content || !userId) {
@@ -83,73 +82,76 @@ export default function NewJokeRoute() {
       name: string;
       content: string;
     };
-    const joke= {name, content, jokester: user}
-    return <JokeUi isOwner={false} joke={joke} />;
+    if (
+      typeof name === 'string' &&
+      typeof content === 'string' &&
+      !validateJokeContent(content) &&
+      !validateJokeName(name)
+    ) {
+      const joke = { name, content, jokester: user };
+      return <JokeUi isOwner={false} joke={joke} />;
+    }
   }
   return (
-    <>
-      <div>
-        <p>Add your own hilarious joke</p>
-        <Form method="post">
-          <input hidden name="userId" defaultValue={user.id}/>
-          <div>
-            <label>
-              Name:{' '}
-              <input
-                type="text"
-                defaultValue={actionData?.fields?.name}
-                name="name"
-                aria-invalid={
-                  Boolean(actionData?.fieldErrors?.name) || undefined
-                }
-                aria-errormessage={
-                  actionData?.fieldErrors?.name ? 'name-error' : undefined
-                }
-              />
-            </label>
-            {actionData?.fieldErrors?.name ? (
-              <p className="form-validation-error" role="alert" id="name-error">
-                {actionData.fieldErrors.name}
-              </p>
-            ) : null}
-          </div>
-          <div>
-            <label>
-              Content:{' '}
-              <textarea
-                defaultValue={actionData?.fields?.content}
-                name="content"
-                aria-invalid={
-                  Boolean(actionData?.fieldErrors?.content) || undefined
-                }
-                aria-errormessage={
-                  actionData?.fieldErrors?.content ? 'content-error' : undefined
-                }
-              />
-            </label>
-            {actionData?.fieldErrors?.content ? (
-              <p
-                className="form-validation-error"
-                role="alert"
-                id="content-error"
-              >
-                {actionData.fieldErrors.content}
-              </p>
-            ) : null}
-          </div>
-          <div>
-            {actionData?.formError ? (
-              <p className="form-validation-error" role="alert">
-                {actionData.formError}
-              </p>
-            ) : null}
-            <button type="submit" className="button">
-              Add
-            </button>
-          </div>
-        </Form>
-      </div>
-    </>
+    <div>
+      <p>Add your own hilarious joke</p>
+      <Form method="post">
+        <input hidden name="userId" defaultValue={user.id} />
+        <div>
+          <label>
+            Name:{' '}
+            <input
+              type="text"
+              defaultValue={actionData?.fields?.name}
+              name="name"
+              aria-invalid={Boolean(actionData?.fieldErrors?.name) || undefined}
+              aria-errormessage={
+                actionData?.fieldErrors?.name ? 'name-error' : undefined
+              }
+            />
+          </label>
+          {actionData?.fieldErrors?.name ? (
+            <p className="form-validation-error" role="alert" id="name-error">
+              {actionData.fieldErrors.name}
+            </p>
+          ) : null}
+        </div>
+        <div>
+          <label>
+            Content:{' '}
+            <textarea
+              defaultValue={actionData?.fields?.content}
+              name="content"
+              aria-invalid={
+                Boolean(actionData?.fieldErrors?.content) || undefined
+              }
+              aria-errormessage={
+                actionData?.fieldErrors?.content ? 'content-error' : undefined
+              }
+            />
+          </label>
+          {actionData?.fieldErrors?.content ? (
+            <p
+              className="form-validation-error"
+              role="alert"
+              id="content-error"
+            >
+              {actionData.fieldErrors.content}
+            </p>
+          ) : null}
+        </div>
+        <div>
+          {actionData?.formError ? (
+            <p className="form-validation-error" role="alert">
+              {actionData.formError}
+            </p>
+          ) : null}
+          <button type="submit" className="button">
+            Add
+          </button>
+        </div>
+      </Form>
+    </div>
   );
 }
 
