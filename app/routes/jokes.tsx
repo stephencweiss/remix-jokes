@@ -6,7 +6,9 @@ import { json } from "@remix-run/node";
 import {
   Link,
   Outlet,
+  useCatch,
   useLoaderData,
+  useParams,
 } from "@remix-run/react";
 
 import { db } from "~/utils/db.server";
@@ -85,4 +87,17 @@ export default function JokesRoute() {
       </main>
     </div>
   );
+}
+
+export function CatchBoundary() {
+  const caught = useCatch();
+  const params = useParams();
+  if (caught.status === 404) {
+    return (
+      <div className="error-container">
+        Huh? What the heck is "{params.jokeId}"?
+      </div>
+    );
+  }
+  throw new Error(`Unhandled error: ${caught.status}`);
 }

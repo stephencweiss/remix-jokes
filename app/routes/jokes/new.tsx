@@ -1,10 +1,11 @@
-import { ActionArgs, LoaderArgs } from '@remix-run/node';
+import type { ActionArgs, LoaderArgs } from '@remix-run/node';
+import { json } from '@remix-run/node';
 import { redirect } from '@remix-run/node';
-import { useActionData, useLoaderData } from '@remix-run/react';
+import { Link, useActionData, useCatch, useLoaderData } from '@remix-run/react';
 
 import { db } from '~/utils/db.server';
 import { badRequest } from '~/utils/request.server';
-import { requireUserId } from '~/utils/session.server';
+import { getUserId, requireUserId } from '~/utils/session.server';
 
 const validateJokeContent = (content: string) => {
   const MIN_JOKE_LENGTH = 10;
@@ -46,15 +47,22 @@ export async function action({ request }: ActionArgs) {
     });
   }
 
-  const joke = await db.joke.create({ data: {
-    jokesterId: userId,
-    ...fields} });
+  const joke = await db.joke.create({
+    data: {
+      jokesterId: userId,
+      ...fields,
+    },
+  });
   return redirect(`/jokes/${joke.id}`);
 }
 
-export const loader = async ({request}: LoaderArgs) => {
-  return await requireUserId(request, new URL(request.url).pathname)
-}
+export const loader = async ({ request }: LoaderArgs) => {
+  const userId = await getUserId(request);
+  if (!userId) {
+    throw new Response('Unauthorized', { status: 401 });
+  }
+  return json({});
+};
 
 export default function NewJokeRoute() {
   const actionData = useActionData<typeof action>();
@@ -71,7 +79,9 @@ export default function NewJokeRoute() {
                 type="text"
                 defaultValue={actionData?.fields?.name}
                 name="name"
-                aria-invalid={Boolean(actionData?.fieldErrors?.name) || undefined}
+                aria-invalid={
+                  Boolean(actionData?.fieldErrors?.name) || undefined
+                }
                 aria-errormessage={
                   actionData?.fieldErrors?.name ? 'name-error' : undefined
                 }
@@ -123,6 +133,18 @@ export default function NewJokeRoute() {
   );
 }
 
+export function CatchBoundary() {
+  const caught = useCatch();
+
+  if (caught.status === 401) {
+    return (
+      <div className="error-container">
+        <p>You must be logged in to create a joke.</p>
+        <Link to="/login">Login</Link>
+      </div>
+    );
+  }
+}
 export function ErrorBoundary() {
   return (
     <div className="error-container">
