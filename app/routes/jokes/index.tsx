@@ -16,12 +16,19 @@ export const loader = async ({ params }: LoaderArgs) => {
 
 export default function JokesIndexRoute() {
   const { randomJoke } = useLoaderData<typeof loader>();
-
   return (
     <div>
       <p>{randomJoke.name}</p>
       <p>{randomJoke.content}</p>
       <Link to={randomJoke.id}>"{randomJoke.name}" Permalink</Link>
+    </div>
+  );
+}
+
+export function ErrorBoundary() {
+  return (
+    <div className="error-container">
+      {'There was an error loading the random joke. Sorry.'}
     </div>
   );
 }
