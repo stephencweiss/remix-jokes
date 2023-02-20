@@ -1,23 +1,33 @@
 import type { LoaderArgs, V2_MetaFunction } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { Link, useCatch, useLoaderData } from '@remix-run/react';
-import { Joke } from '~/components/joke';
+import { JokeUi } from '~/components/joke';
 import { db } from '~/utils/db.server';
+import { getUser } from '~/utils/session.server';
 
-export const loader = async ({ params }: LoaderArgs) => {
+export const loader = async ({ request }: LoaderArgs) => {
   const count = await db.joke.count();
   const randomRowNumber = Math.floor(Math.random() * count);
   const [randomJoke] = await db.joke.findMany({
     take: 1,
     skip: randomRowNumber,
-    select: { name: true, id: true, content: true, jokester:true },
+    select: {
+      name: true,
+      id: true,
+      content: true,
+      jokester: true,
+      jokesterId: true,
+    },
   });
-  return json({ randomJoke });
+  const user = await getUser(request);
+  const isOwner = user?.id === randomJoke.jokesterId;
+  return json({ randomJoke, isOwner });
 };
 
-export const meta: V2_MetaFunction = ({matches}) => {
+export const meta: V2_MetaFunction = ({ matches }) => {
   let [parentMeta] = matches.map((match) => match.meta ?? []);
-  const description = 'Remix jokes app. Learn Remix and laugh at the same time!'
+  const description =
+    'Remix jokes app. Learn Remix and laugh at the same time!';
   return [
     ...parentMeta,
     { title: "Remix: So great, it's funny!" },
@@ -30,13 +40,17 @@ export const meta: V2_MetaFunction = ({matches}) => {
 };
 
 export default function JokesIndexRoute() {
-  const { randomJoke } = useLoaderData<typeof loader>();
+  const { randomJoke, isOwner } = useLoaderData<typeof loader>();
   if (!randomJoke) {
     throw new Response('Welp, this is embarrassing!', { status: 404 });
   }
+
   return (
     <div>
-      <Joke owner={randomJoke.jokester.username} name={randomJoke.name} content={randomJoke.content} />
+      <JokeUi
+        isOwner={isOwner}
+        joke={randomJoke}
+      />
       <Link to={randomJoke.id}>"{randomJoke.name}" Permalink</Link>
     </div>
   );

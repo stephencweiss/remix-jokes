@@ -1,15 +1,37 @@
-type JokeProps = {
+import { Form } from '@remix-run/react';
+
+type Joke = {
   name: string;
   content: string;
-  owner: string;
+  jokester: { username: string };
 };
 
-export function Joke(props: JokeProps) {
+type JokeProps = {
+  joke: Joke;
+  isOwner: boolean;
+};
+
+export function JokeUi(props: JokeProps) {
+  const {
+    joke: { name, content, jokester },
+    isOwner,
+  } = props;
   return (
     <>
-      <p>{props.name}</p>
-      <p>{props.content}</p>
-      <p>Submitted by: {props.owner}</p>
+      <p>{name}</p>
+      <p>{content}</p>
+      <p>Submitted by: {jokester.username}</p>
+      <Form method="post">
+        <button
+          name="intent"
+          value="delete"
+          type="submit"
+          aria-disabled={!isOwner}
+          disabled={!isOwner}
+        >
+          Delete
+        </button>
+      </Form>
     </>
   );
 }

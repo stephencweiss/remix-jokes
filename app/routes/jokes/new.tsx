@@ -1,11 +1,19 @@
 import type { ActionArgs, LoaderArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { redirect } from '@remix-run/node';
-import { Form, Link, useActionData, useCatch, useLoaderData } from '@remix-run/react';
+import {
+  Form,
+  Link,
+  useActionData,
+  useCatch,
+  useLoaderData,
+  useNavigation,
+} from '@remix-run/react';
+import { JokeUi } from '~/components/joke';
 
 import { db } from '~/utils/db.server';
 import { badRequest } from '~/utils/request.server';
-import { getUserId, requireUserId } from '~/utils/session.server';
+import { getUser } from '~/utils/session.server';
 
 const validateJokeContent = (content: string) => {
   const MIN_JOKE_LENGTH = 10;
@@ -21,12 +29,12 @@ const validateJokeName = (name: string) => {
 };
 
 export async function action({ request }: ActionArgs) {
-  const userId = await requireUserId(request);
   const body = await request.formData();
+  const userId = String(body.get('userId'));
+  console.log({userId})
   const name = String(body.get('name'));
   const content = String(body.get('content'));
-  if (!name || !content) {
-    // TODO: error handle?
+  if (!name || !content || !userId) {
     return badRequest({
       fieldErrors: null,
       fields: null,
@@ -57,21 +65,33 @@ export async function action({ request }: ActionArgs) {
 }
 
 export const loader = async ({ request }: LoaderArgs) => {
-  const userId = await getUserId(request);
-  if (!userId) {
+  const user = await getUser(request);
+  if (!user) {
     throw new Response('Unauthorized', { status: 401 });
   }
-  return json({});
+  return json({ user });
 };
 
 export default function NewJokeRoute() {
+  const { user } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
-  useLoaderData<typeof loader>();
+  const navigation = useNavigation();
+
+  if (navigation.formData) {
+    // TODO: Add zod validation
+    const { name, content } = Object.fromEntries(navigation.formData) as {
+      name: string;
+      content: string;
+    };
+    const joke= {name, content, jokester: user}
+    return <JokeUi isOwner={false} joke={joke} />;
+  }
   return (
-    <body>
+    <>
       <div>
         <p>Add your own hilarious joke</p>
         <Form method="post">
+          <input hidden name="userId" defaultValue={user.id}/>
           <div>
             <label>
               Name:{' '}
@@ -129,7 +149,7 @@ export default function NewJokeRoute() {
           </div>
         </Form>
       </div>
-    </body>
+    </>
   );
 }
 
