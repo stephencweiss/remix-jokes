@@ -1,4 +1,4 @@
-import type { LoaderArgs } from '@remix-run/node';
+import type { LoaderArgs, V2_MetaFunction } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { Link, useCatch, useLoaderData } from '@remix-run/react';
 import { db } from '~/utils/db.server';
@@ -12,6 +12,20 @@ export const loader = async ({ params }: LoaderArgs) => {
     select: { name: true, id: true, content: true },
   });
   return json({ randomJoke });
+};
+
+export const meta: V2_MetaFunction = ({matches}) => {
+  let [parentMeta] = matches.map((match) => match.meta ?? []);
+  const description = 'Remix jokes app. Learn Remix and laugh at the same time!'
+  return [
+    ...parentMeta,
+    { title: "Remix: So great, it's funny!" },
+    {
+      name: 'description',
+      content: description,
+    },
+    { property: 'twitter:description', content: description },
+  ];
 };
 
 export default function JokesIndexRoute() {
@@ -33,14 +47,10 @@ export function CatchBoundary() {
 
   if (caught.status === 404) {
     return (
-      <div className="error-container">
-        There are no jokes to display.
-      </div>
+      <div className="error-container">There are no jokes to display.</div>
     );
   }
-  throw new Error(
-    `Unexpected caught response with status: ${caught.status}`
-  );
+  throw new Error(`Unexpected caught response with status: ${caught.status}`);
 }
 
 export function ErrorBoundary() {

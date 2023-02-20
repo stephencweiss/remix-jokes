@@ -1,4 +1,9 @@
-import { ActionArgs, LinksFunction, redirect } from '@remix-run/node';
+import {
+  ActionArgs,
+  LinksFunction,
+  redirect,
+  V2_MetaFunction,
+} from '@remix-run/node';
 import { Link, useActionData, useSearchParams } from '@remix-run/react';
 
 import { db } from '~/utils/db.server';
@@ -87,7 +92,7 @@ export async function action({ request }: ActionArgs) {
           formError: `Username is already taken; please choose a different one`,
         });
       }
-      const {id} = await register({ username, password });
+      const { id } = await register({ username, password });
       if (id == null) {
         return badRequest({
           fieldErrors: null,
@@ -106,6 +111,16 @@ export async function action({ request }: ActionArgs) {
       });
   }
 }
+
+export const meta: V2_MetaFunction = () => {
+  return [
+    {
+      name: 'description',
+      content: 'Login to submit your own jokes to Remix Jokes!',
+    },
+    { title: 'Remix Jokes | Login' },
+  ];
+};
 
 export default function Login() {
   const actionData = useActionData<typeof action>();

@@ -1,4 +1,4 @@
-import type { ActionArgs, LoaderArgs } from '@remix-run/node';
+import type { ActionArgs, LoaderArgs, V2_MetaFunction } from '@remix-run/node';
 import { redirect } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { useCatch, useLoaderData, useParams } from '@remix-run/react';
@@ -53,6 +53,7 @@ export const loader = async ({ params, request }: LoaderArgs) => {
 
 export const meta: V2_MetaFunction<typeof loader> = ({ matches, data }) => {
   let [parentMeta] = matches.map((match) => match.meta ?? []);
+
   if (!data) {
     return [
       ...parentMeta,
@@ -63,13 +64,16 @@ export const meta: V2_MetaFunction<typeof loader> = ({ matches, data }) => {
       },
     ];
   }
+
+  const description = `Enjoy the "${data.joke.name}" joke and much more`
   return [
     ...parentMeta,
     { title: `"${data.joke.name}" joke` },
     {
       name: 'description',
-      content: `Enjoy the "${data.joke.name}" joke and much more`,
+      content: description,
     },
+    { property: 'twitter:description', content: description },
   ];
 };
 
