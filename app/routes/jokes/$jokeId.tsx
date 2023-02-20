@@ -2,6 +2,7 @@ import type { ActionArgs, LoaderArgs, V2_MetaFunction } from '@remix-run/node';
 import { redirect } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { Form, useCatch, useLoaderData, useParams } from '@remix-run/react';
+import { Joke } from '~/components/joke';
 import { db } from '~/utils/db.server';
 import { getUser, getUserId } from '~/utils/session.server';
 
@@ -78,12 +79,10 @@ export const meta: V2_MetaFunction<typeof loader> = ({ matches, data }) => {
 };
 
 export default function JokeRoute() {
-  const { joke, jokester, isOwner } = useLoaderData<typeof loader>();
+  const { joke, isOwner } = useLoaderData<typeof loader>();
   return (
     <div>
-      <p>{joke?.name}</p>
-      <p>{joke?.content}</p>
-      <p>Submitted by: {jokester?.username}</p>
+      <Joke  name={joke?.name} content={joke?.content} owner={joke.jokester.username}/>
       <Form method="post">
         <button
           name="intent"

@@ -1,6 +1,7 @@
 import type { LoaderArgs, V2_MetaFunction } from '@remix-run/node';
 import { json } from '@remix-run/node';
 import { Link, useCatch, useLoaderData } from '@remix-run/react';
+import { Joke } from '~/components/joke';
 import { db } from '~/utils/db.server';
 
 export const loader = async ({ params }: LoaderArgs) => {
@@ -9,7 +10,7 @@ export const loader = async ({ params }: LoaderArgs) => {
   const [randomJoke] = await db.joke.findMany({
     take: 1,
     skip: randomRowNumber,
-    select: { name: true, id: true, content: true },
+    select: { name: true, id: true, content: true, jokester:true },
   });
   return json({ randomJoke });
 };
@@ -35,8 +36,7 @@ export default function JokesIndexRoute() {
   }
   return (
     <div>
-      <p>{randomJoke.name}</p>
-      <p>{randomJoke.content}</p>
+      <Joke owner={randomJoke.jokester.username} name={randomJoke.name} content={randomJoke.content} />
       <Link to={randomJoke.id}>"{randomJoke.name}" Permalink</Link>
     </div>
   );
