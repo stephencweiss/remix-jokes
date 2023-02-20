@@ -3,6 +3,20 @@ import { createSessionStorage, redirect } from '@remix-run/node';
 import * as bcrypt from 'bcryptjs'
 import { db } from "./db.server"
 
+// Read variables from process.env
+const AUTH0_LOGOUT_URL = process.env.AUTH0_LOGOUT_URL
+const AUTH0_CLIENT_ID = process.env.AUTH0_CLIENT_ID
+const AUTH0_RETURN_TO_URL = process.env.AUTH0_RETURN_TO_URL
+
+// Ensure they are defined and throw error if not
+if (!AUTH0_LOGOUT_URL) throw new Error("Missing Auth0 logout url.");
+if (!AUTH0_CLIENT_ID) throw new Error("Missing Auth0 client id.");
+if (!AUTH0_RETURN_TO_URL) throw new Error("Missing Auth0 return url.");
+const auth0 = {
+  logoutUrl: AUTH0_LOGOUT_URL,
+  clientId: AUTH0_CLIENT_ID,
+  returnToUrl: AUTH0_RETURN_TO_URL
+}
 type LoginForm = {
   username: string;
   password: string;
@@ -51,8 +65,15 @@ function createDatabaseSessionStorage({
   return createSessionStorage({
     cookie,
     async createData(data: SessionData, expires?: Date) {
-      console.log({ data })
-      const session = await db.session.create({ data: { userId: data.userId, expiresAt: expires } });
+
+      const { "oauth2:state": oauth2state, userId, expires: expiresAt } = data;
+      const session = await db.session.create({
+        data: {
+          userId,
+          expiresAt,
+          oauth2state,
+        }
+      });
       return session.id;
     },
     async readData(id) {
@@ -63,11 +84,14 @@ function createDatabaseSessionStorage({
       return session;
     },
     async updateData(id, data, expires) {
+
+      const { "oauth2:state": oauth2state, ...rest } = data;
       await db.session.update({
         where: { id },
         data: {
           ...(expires ? { expiresAt: expires } : {}),
-          ...data
+          ...rest,
+          oauth2state
         }
       })
     },
@@ -76,10 +100,12 @@ function createDatabaseSessionStorage({
     },
   })
 };
-const storage = createDatabaseSessionStorage({ cookie });
+
+export const storage = createDatabaseSessionStorage({ cookie });
 
 export async function createUserSession(userId: string, redirectTo: string) {
   const session = await storage.getSession();
+
   session.set('userId', userId)
 
   return redirect(redirectTo, {
@@ -118,6 +144,19 @@ export async function logout(request: Request) {
       "Set-Cookie": await storage.destroySession(session),
     }
   })
+}
+
+export async function logoutAuth0(request: Request) {
+  const session = await storage.getSession(request.headers.get("Cookie"));
+  const logoutURL = new URL(auth0.logoutUrl);
+  logoutURL.searchParams.set("client_id", auth0.clientId);
+  logoutURL.searchParams.set("returnTo", auth0.returnToUrl);
+
+  return redirect(logoutURL.toString(), {
+    headers: {
+      "Set-Cookie": await storage.destroySession(session),
+    },
+  });
 }
 
 export async function requireUserId(

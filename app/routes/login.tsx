@@ -217,6 +217,9 @@ export default function Login() {
           </button>
         </Form>
       </div>
+      <Form action="/auth/auth0" method="post">
+        <button>Login with Auth0</button>
+      </Form>
       <div className="links">
         <ul>
           <li>
