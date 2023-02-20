@@ -70,6 +70,17 @@
   border-top: 1px solid var(--color-border);
 }
 
+.buttons-list {
+  display: flex;
+  flex-direction: column;
+}
+.buttons-list > .button {
+  margin-bottom: 1rem;
+}
+.buttons-list > .button:last-child {
+  margin-bottom: 0;
+}
+
 @media print, (min-width: 640px) {
   .jokes-header .logo {
     display: none;
