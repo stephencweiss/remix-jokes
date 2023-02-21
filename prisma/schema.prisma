@@ -11,23 +11,28 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  username     String    @unique
-  passwordHash String
-  jokes        Joke[]
-  sessions     Session[]
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  email         String   @unique
+  emailVerified Boolean
+  passwordHash  String?
+  jokes         Joke[]
+  // sessions     Session[]
+  oAuthProfile  Json?
+  oAuthId       String?
 }
 
-model Session {
-  id          String    @id @default(cuid())
-  createdAt   DateTime  @default(now())
-  expiresAt   DateTime?
-  user        User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId      String?
-  oauth2state String?    @map("oauth2:state")
-}
+// model Session {
+//   id          String    @id @default(cuid())
+//   createdAt   DateTime  @default(now())
+//   expiresAt   DateTime?
+//   user        User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   userId      String?
+//   oauth2state String?   @map("oauth2:state")
+//   state       String?
+//   json Json?
+// }
 
 model Joke {
   id         String   @id @default(cuid())

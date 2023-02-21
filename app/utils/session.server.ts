@@ -1,4 +1,4 @@
-import type { CookieOptions, SessionData } from '@remix-run/node';
+import { CookieOptions, createCookieSessionStorage, SessionData } from '@remix-run/node';
 import { createSessionStorage, redirect } from '@remix-run/node';
 import * as bcrypt from 'bcryptjs'
 import { db } from "./db.server"
@@ -65,18 +65,16 @@ function createDatabaseSessionStorage({
   return createSessionStorage({
     cookie,
     async createData(data: SessionData, expires?: Date) {
-
-      const { "oauth2:state": oauth2state, userId, expires: expiresAt } = data;
+      const { "oauth2:state": oauth2state, ...rest } = data
       const session = await db.session.create({
         data: {
-          userId,
-          expiresAt,
-          oauth2state,
+          oauth2state, state: oauth2state, json: rest
         }
       });
       return session.id;
     },
     async readData(id) {
+      console.log({ id })
       const session = await db.session.findUnique({
         where: { id },
         select: { userId: true }
@@ -84,14 +82,14 @@ function createDatabaseSessionStorage({
       return session;
     },
     async updateData(id, data, expires) {
-
-      const { "oauth2:state": oauth2state, ...rest } = data;
+      const { "oauth2:state": oauth2state, ...rest } = data
+      console.log(`updating`, { data })
       await db.session.update({
         where: { id },
         data: {
-          ...(expires ? { expiresAt: expires } : {}),
-          ...rest,
-          oauth2state
+          state: oauth2state,
+          oauth2state,
+          json: rest
         }
       })
     },
@@ -101,11 +99,10 @@ function createDatabaseSessionStorage({
   })
 };
 
-export const storage = createDatabaseSessionStorage({ cookie });
-
+// export const storage = createDatabaseSessionStorage({ cookie });
+export const storage = createCookieSessionStorage({ cookie, });
 export async function createUserSession(userId: string, redirectTo: string) {
   const session = await storage.getSession();
-
   session.set('userId', userId)
 
   return redirect(redirectTo, {

@@ -3,10 +3,12 @@ import { redirect } from '@remix-run/node';
 
 import { authenticator } from '~/utils/auth.server';
 
-export let loader = () => redirect('/login');
+export let loader = () => {
+  return redirect('/jokes')};
 
-export let action = ({ request }: ActionArgs) => {
-  console.log(`my url -> `, request.url)
-  return authenticator.authenticate('auth0', request);
+export let action = async ({ request }: ActionArgs) => {
+  const authn =  await authenticator.authenticate('auth0', request);
+  console.log({authn})
+  return authn;
 };
 
