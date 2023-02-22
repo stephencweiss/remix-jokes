@@ -3,7 +3,7 @@ import { Form } from '@remix-run/react';
 type Joke = {
   name: string;
   content: string;
-  jokester: { username: string };
+  jokester: { email: string };
 };
 
 type JokeProps = {
@@ -20,7 +20,7 @@ export function JokeUi(props: JokeProps) {
     <>
       <p>{name}</p>
       <p>{content}</p>
-      <p>Submitted by: {jokester.username}</p>
+      <p>Submitted by: {jokester.email}</p>
       <Form method="post">
         <button
           name="intent"

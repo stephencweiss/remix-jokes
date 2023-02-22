@@ -1,11 +1,12 @@
 // app/services/auth.server.ts
-import { Authenticator, StrategyVerifyCallback } from "remix-auth";
+import { Authenticator } from "remix-auth";
 import { Auth0Strategy } from "remix-auth-auth0";
 import type { Auth0StrategyOptions } from "remix-auth-auth0";
-import { storage } from "~/utils/session.server";
+import { login, register, storage } from "~/utils/session.server";
 import { db } from "./db.server";
-import { User } from "@prisma/client";
-import { OAuth2StrategyVerifyParams } from "remix-auth-oauth2";
+import { FormStrategy } from "remix-auth-form";
+import { invariant } from "@remix-run/router";
+import { badRequest } from "./request.server";
 
 // Read variables from process.env
 const AUTH0_CLIENT_ID = process.env.AUTH0_CLIENT_ID
@@ -40,31 +41,104 @@ const auth0Strategy = new Auth0Strategy(
    * The Callback will determine whether or not the user has previously authenticated
    *   with Auth0.
    * We will know this based on the primary email address provided on the profile.
-   * This will become the unique username.
+   * This will become the unique email.
    *
    * If they have not, we will create the profile and store all of the extra params
    *   associated with the profile.
   * */
-  async ({ accessToken, refreshToken, extraParams, profile, context }) => {
-    console.log(JSON.stringify({ accessToken, refreshToken, extraParams, profile }, null, 4))
-
+  async ({ profile }) => {
     const email: string = profile?.emails?.[0].value ?? ''
-    console.log({ emails: profile.emails })
     if (!email) {
       throw new Error('No email found, cannot proceed with Authentication')
     }
-    const user = await db.user.findUnique({ where: { username: email } })
-    if (!user) {
-      const user = await db.user.create({ data:
-        {
-           username: email,
-           oAuthId: profile.id,
-           oAuthProfile: profile._json,
-          } })
-      return { userId: user.id }
-    }
+
+    const user = await db.user.upsert({
+      where: { email },
+      update: {},
+      create:
+      {
+        email: email,
+        emailVerified: false,
+        oAuthId: profile.id,
+        // TODO: Figure out the right way to do json blobs
+        oAuthProfile: profile._json as any,
+      }
+    })
     return { userId: user.id }
   }
 );
 
-authenticator.use(auth0Strategy);
+
+const validateUrl = (url: FormDataEntryValue | null): string => {
+  const strUrl = String(url);
+  let urls = ['/jokes', '/jokes/new', '/', 'https://remix.run'];
+  if (urls.includes(strUrl)) {
+    return strUrl;
+  }
+  return '/jokes';
+};
+
+const formStrategy = new FormStrategy<UserId>(async ({ context }) => {
+  const { formData } = context as any;
+
+  const loginType = formData.get('loginType');
+  const email = formData.get('email');
+  const password = formData.get('password');
+  const redirectTo = validateUrl(formData.get('redirectTo'));
+
+  // You can validate the inputs however you want
+  invariant(typeof email === "string", "email must be a string");
+  invariant(email.length > 0, "email must not be empty");
+
+  invariant(typeof password === "string", "password must be a string");
+  invariant(password.length > 0, "password must not be empty");
+  const fields = { loginType, email, password };
+  switch (loginType) {
+    case 'login': {
+      const user = await login(fields);
+      if (!user) {
+        return badRequest({
+          fieldErrors: null,
+          fields,
+          formError: 'email/Password combination is incorrect',
+        });
+      }
+      return { userId: user.id }
+    }
+    case 'register': {
+      const userExists = await db.user.findUnique({
+        where: { email },
+      });
+      if (userExists) {
+        return badRequest({
+          fieldErrors: null,
+          fields,
+          formError: `email is already taken; please choose a different one`,
+        });
+      }
+      const { id } = await register(fields);
+      if (id == null) {
+        return badRequest({
+          fieldErrors: null,
+          fields,
+          formError: `Something went wrong while creating a new user; please try again`,
+        });
+      }
+      return { userId: id }
+
+    }
+    default:
+      return badRequest({
+        fields,
+        fieldErrors: null,
+        formError: `Invalid login type`,
+      });
+
+
+
+
+  }
+})
+
+authenticator.use(auth0Strategy, 'auth0');
+authenticator.use(formStrategy, 'form');

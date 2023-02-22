@@ -4,7 +4,7 @@ import { json } from '@remix-run/node';
 import { Form, useCatch, useLoaderData, useParams } from '@remix-run/react';
 import { JokeUi } from '~/components/joke';
 import { db } from '~/utils/db.server';
-import { getUser, getUserId } from '~/utils/session.server';
+import { getUserId } from '~/utils/session.server';
 
 export const action = async ({ request, params }: ActionArgs) => {
   const data = await request.formData();
@@ -35,7 +35,7 @@ export const action = async ({ request, params }: ActionArgs) => {
 };
 
 export const loader = async ({ params, request }: LoaderArgs) => {
-  const user = await getUser(request);
+  const user = await getAuthenticatedUser(request);
   const joke = await db.joke.findUnique({
     where: { id: params.jokeId },
     select: { name: true, content: true, jokesterId: true, jokester: true },

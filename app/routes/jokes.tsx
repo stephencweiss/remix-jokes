@@ -18,13 +18,12 @@ export const links: LinksFunction = () => {
 };
 
 export const loader = async ({ request }: LoaderArgs) => {
+  const user = await getUser(request)
   const jokeListItems = await db.joke.findMany({
     take: 5,
     orderBy: { createdAt: 'desc' },
     select: { id: true, name: true },
   });
-  const user = await getUser(request);
-
   return json({
     jokeListItems,
     user,
@@ -46,7 +45,7 @@ export default function JokesRoute() {
           </h1>
           {data.user ? (
             <div className="user-info">
-              <span>{`Hi ${data.user.username}`}</span>
+              <span>{`Hi ${data.user.email}`}</span>
               <Form action="/logout" method="post">
                 <button type="submit" className="button">
                   Logout
@@ -66,11 +65,13 @@ export default function JokesRoute() {
             <ul>
               {data.jokeListItems.map((joke) => (
                 <li key={joke.id}>
-                  <Link prefetch='intent' to={joke.id}>{joke.name}</Link>
+                  <Link prefetch="intent" to={joke.id}>
+                    {joke.name}
+                  </Link>
                 </li>
               ))}
             </ul>
-            <div className='buttons-list'>
+            <div className="buttons-list">
               <Link to="new" className="button">
                 Add your own
               </Link>

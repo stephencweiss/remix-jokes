@@ -1,6 +1,7 @@
-import { CookieOptions, createCookieSessionStorage, SessionData } from '@remix-run/node';
+import { CookieOptions, createCookieSessionStorage, json, SessionData } from '@remix-run/node';
 import { createSessionStorage, redirect } from '@remix-run/node';
 import * as bcrypt from 'bcryptjs'
+import { authenticator } from './auth.server';
 import { db } from "./db.server"
 
 // Read variables from process.env
@@ -18,28 +19,39 @@ const auth0 = {
   returnToUrl: AUTH0_RETURN_TO_URL
 }
 type LoginForm = {
-  username: string;
+  email: string;
   password: string;
 }
 
-export async function register({ username, password }: LoginForm) {
+export async function register({ email, password }: LoginForm) {
   const passwordHash = await bcrypt.hash(password, 10)
-  const { id } = await db.user.create({ data: { username, passwordHash } });
-  return { id, username }
+  const { id } = await db.user.create({
+    data: {
+      email,
+      emailVerified: false,
+      passwordHash
+    }
+  });
+  return { id, email }
 }
 
-export async function login({ username, password }: LoginForm) {
-  const user = await db.user.findUnique({ where: { username } })
+export async function login({ email, password }: LoginForm) {
+  const user = await db.user.findUnique({ where: { email } })
   if (!user) {
     return null;
   }
 
-  const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+  const foundPassword = user.passwordHash;
+  if (!foundPassword) {
+    return null;
+  }
+
+  const passwordMatch = await bcrypt.compare(password, foundPassword);
   if (!passwordMatch) {
     return null;
   }
 
-  return { id: user.id, username };
+  return { id: user.id, email };
 }
 
 const sessionSecret = process.env.SESSION_SECRET;
@@ -57,54 +69,56 @@ const cookie: CookieOptions & { name: string } = {
   httpOnly: true,
 }
 
-function createDatabaseSessionStorage({
-  cookie,
-}: { cookie: CookieOptions }) {
-  // Configure your database client...
+// function createDatabaseSessionStorage({
+//   cookie,
+// }: { cookie: CookieOptions }) {
+//   // Configure your database client...
 
-  return createSessionStorage({
-    cookie,
-    async createData(data: SessionData, expires?: Date) {
-      const { "oauth2:state": oauth2state, ...rest } = data
-      const session = await db.session.create({
-        data: {
-          oauth2state, state: oauth2state, json: rest
-        }
-      });
-      return session.id;
-    },
-    async readData(id) {
-      console.log({ id })
-      const session = await db.session.findUnique({
-        where: { id },
-        select: { userId: true }
-      });
-      return session;
-    },
-    async updateData(id, data, expires) {
-      const { "oauth2:state": oauth2state, ...rest } = data
-      console.log(`updating`, { data })
-      await db.session.update({
-        where: { id },
-        data: {
-          state: oauth2state,
-          oauth2state,
-          json: rest
-        }
-      })
-    },
-    async deleteData(id) {
-      await db.session.delete({ where: { id } });
-    },
-  })
-};
+//   return createSessionStorage({
+//     cookie,
+//     async createData(data: SessionData, expires?: Date) {
+//       const { "oauth2:state": oauth2state, ...rest } = data
+//       const session = await db.session.create({
+//         data: {
+//           oauth2state, state: oauth2state, json: rest
+//         }
+//       });
+//       return session.id;
+//     },
+//     async readData(id) {
+//       console.log({ id })
+//       const session = await db.session.findUnique({
+//         where: { id },
+//         select: { userId: true }
+//       });
+//       return session;
+//     },
+//     async updateData(id, data, expires) {
+//       const { "oauth2:state": oauth2state, ...rest } = data
+//       console.log(`updating`, { data })
+//       await db.session.update({
+//         where: { id },
+//         data: {
+//           state: oauth2state,
+//           oauth2state,
+//           json: rest
+//         }
+//       })
+//     },
+//     async deleteData(id) {
+//       await db.session.delete({ where: { id } });
+//     },
+//   })
+// };
 
 // export const storage = createDatabaseSessionStorage({ cookie });
 export const storage = createCookieSessionStorage({ cookie, });
 export async function createUserSession(userId: string, redirectTo: string) {
+  console.log(`createUserSession`, { userId })
   const session = await storage.getSession();
   session.set('userId', userId)
-
+  const uid = await session.get('userId')
+  console.log({ uid })
   return redirect(redirectTo, {
     headers: {
       "Set-Cookie": await storage.commitSession(session),
@@ -113,21 +127,20 @@ export async function createUserSession(userId: string, redirectTo: string) {
 }
 
 export async function getUserSession(request: Request) {
-  return await storage.getSession(request.headers.get("Cookie"))
+  return await storage.getSession(request.headers.get("cookie"))
 }
 
 export async function getUserId(request: Request) {
-  const session = await getUserSession(request);
-  const userId = session.get('userId')
+  const {userId} = await authenticator.isAuthenticated(request) ?? {}
   if (!userId || typeof userId !== 'string') return null;
   return userId
 }
 
 export async function getUser(request: Request) {
   const userId = await getUserId(request);
-  if (userId === null) return null;
+  if (userId == null) return null;
   try {
-    const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, username: true } })
+    const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, email: true } })
     return user
   } catch {
     throw logout(request)
@@ -144,7 +157,7 @@ export async function logout(request: Request) {
 }
 
 export async function logoutAuth0(request: Request) {
-  const session = await storage.getSession(request.headers.get("Cookie"));
+  const session = await storage.getSession(request.headers.get("cookie"));
   const logoutURL = new URL(auth0.logoutUrl);
   logoutURL.searchParams.set("client_id", auth0.clientId);
   logoutURL.searchParams.set("returnTo", auth0.returnToUrl);

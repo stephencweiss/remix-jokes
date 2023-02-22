@@ -1,9 +1,4 @@
-import {
-  ActionArgs,
-  LinksFunction,
-  redirect,
-  V2_MetaFunction,
-} from '@remix-run/node';
+import type { ActionArgs, LinksFunction, V2_MetaFunction } from '@remix-run/node';
 import { Form, Link, useActionData, useSearchParams } from '@remix-run/react';
 
 import { db } from '~/utils/db.server';
@@ -11,6 +6,7 @@ import { db } from '~/utils/db.server';
 import stylesUrl from '~/styles/login.css';
 import { badRequest } from '~/utils/request.server';
 import { createUserSession, login, register } from '~/utils/session.server';
+import { authenticator } from '~/utils/auth.server';
 
 export const links: LinksFunction = () => [
   { rel: 'stylesheet', href: stylesUrl },
@@ -23,32 +19,23 @@ const validatePassword = (password: string) => {
   }
 };
 
-const validateUsername = (username: string) => {
-  const MIN_USERNAME_LENGTH = 4;
-  if (username.length < MIN_USERNAME_LENGTH) {
-    return `Passwords must be at least ${MIN_USERNAME_LENGTH} characters long`;
+const validateEmail = (email: string) => {
+  const MIN_email_LENGTH = 4;
+  if (email.length < MIN_email_LENGTH) {
+    return `Passwords must be at least ${MIN_email_LENGTH} characters long`;
   }
   // TODO: add Zod or something to validate that this is an email?
 };
 
-const validateUrl = (url: FormDataEntryValue | null): string => {
-  const strUrl = String(url);
-  let urls = ['/jokes', '/jokes/new', '/', 'https://remix.run'];
-  if (urls.includes(strUrl)) {
-    return strUrl;
-  }
-  return '/jokes';
-};
-
 export async function action({ request }: ActionArgs) {
-  const body = await request.formData();
-  const loginType = body.get('loginType');
-  const username = body.get('username');
-  const password = body.get('password');
-  const redirectTo = validateUrl(body.get('redirectTo'));
+  const formData = await request.formData();
+  const loginType = formData.get('loginType');
+  const email = formData.get('email');
+  const password = formData.get('password');
+
   if (
     typeof loginType !== 'string' ||
-    typeof username !== 'string' ||
+    typeof email !== 'string' ||
     typeof password !== 'string'
   ) {
     return badRequest({
@@ -57,9 +44,9 @@ export async function action({ request }: ActionArgs) {
       formError: 'Form missing required fields',
     });
   }
-  const fields = { loginType, username, password };
+  const fields = { loginType, email, password };
   const fieldErrors = {
-    username: validateUsername(username),
+    email: validateEmail(email),
     password: validatePassword(password),
   };
   if (Object.values(fieldErrors).some(Boolean)) {
@@ -69,47 +56,14 @@ export async function action({ request }: ActionArgs) {
       formError: null,
     });
   }
-  switch (loginType) {
-    case 'login': {
-      const user = await login(fields);
-      if (!user) {
-        return badRequest({
-          fieldErrors: null,
-          fields,
-          formError: 'Username/Password combination is incorrect',
-        });
-      }
-      return await createUserSession(user.id, redirectTo);
-    }
-    case 'register': {
-      const userExists = await db.user.findUnique({
-        where: { username },
-      });
-      if (userExists) {
-        return badRequest({
-          fieldErrors: null,
-          fields,
-          formError: `Username is already taken; please choose a different one`,
-        });
-      }
-      const { id } = await register({ username, password });
-      if (id == null) {
-        return badRequest({
-          fieldErrors: null,
-          fields,
-          formError: `Something went wrong while creating a new user; please try again`,
-        });
-      }
 
-      return await createUserSession(id, redirectTo);
-    }
-    default:
-      return badRequest({
-        fields,
-        fieldErrors: null,
-        formError: `Invalid login type`,
-      });
-  }
+  return authenticator.authenticate('form', request, {
+    successRedirect: '/',
+    failureRedirect: '/logout',
+    throwOnError: true,
+    context: {formData}
+  })
+
 }
 
 export const meta: V2_MetaFunction = () => {
@@ -125,8 +79,6 @@ export const meta: V2_MetaFunction = () => {
 export default function Login() {
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
-  const redir = searchParams.get('redirectTo');
-  console.log({ searchParams, redir });
   return (
     <div className="container">
       <div className="content" data-light="">
@@ -162,24 +114,24 @@ export default function Login() {
             </label>
           </fieldset>
           <div>
-            <label htmlFor="username-input">Username</label>
+            <label htmlFor="email-input">email</label>
             <input
               type="text"
-              id="username-input"
-              name="username"
-              defaultValue={actionData?.fields?.username}
-              aria-invalid={Boolean(actionData?.fieldErrors?.username)}
+              id="email-input"
+              name="email"
+              defaultValue={actionData?.fields?.email}
+              aria-invalid={Boolean(actionData?.fieldErrors?.email)}
               aria-errormessage={
-                actionData?.fieldErrors?.username ? 'username-error' : undefined
+                actionData?.fieldErrors?.email ? 'email-error' : undefined
               }
             />
-            {actionData?.fieldErrors?.username ? (
+            {actionData?.fieldErrors?.email ? (
               <p
                 className="form-validation-error"
                 role="alert"
-                id="username-error"
+                id="email-error"
               >
-                {actionData.fieldErrors.username}
+                {actionData.fieldErrors.email}
               </p>
             ) : null}
           </div>
@@ -218,7 +170,14 @@ export default function Login() {
         </Form>
       </div>
       <Form action="/auth/auth0" method="post">
-        <button>Login with Auth0</button>
+        <input
+          type="hidden"
+          name="redirectTo"
+          value={searchParams.get('redirectTo') ?? undefined}
+        />
+        <button type="submit" className="button">
+          Login with Auth0
+        </button>
       </Form>
       <div className="links">
         <ul>

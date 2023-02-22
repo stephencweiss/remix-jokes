@@ -19,7 +19,7 @@ export const loader = async ({ request }: LoaderArgs) => {
   const jokes = await db.joke.findMany({
     take: 100,
     orderBy: { createdAt: "desc" },
-    include: { jokester: { select: { username: true } } },
+    include: { jokester: { select: { email: true } } },
   });
 
   const host =
@@ -54,7 +54,7 @@ export const loader = async ({ request }: LoaderArgs) => {
                 joke.name
               )}]]></description>
               <author><![CDATA[${escapeCdata(
-                joke.jokester.username
+                joke.jokester.email
               )}]]></author>
               <pubDate>${joke.createdAt.toUTCString()}</pubDate>
               <link>${jokesUrl}/${joke.id}</link>
